@@ -1,0 +1,6 @@
+{
+  "name": "ForVasu",
+  "description": "Real-time messaging workspace with username and password accounts, channels, and direct messages.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

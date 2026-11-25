@@ -1,0 +1,705 @@
+{
+  "entities": {
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Private owner-only user account record isolating PII such as email.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9._\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 320
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "username", "email", "createdAt"]
+    },
+    "PublicUser": {
+      "title": "PublicUser",
+      "description": "Public discoverable profile document with handle, display name, avatar, bio, presence, and optional 24h status note.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9._\\-]+$"
+        },
+        "usernameLower": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-z0-9._\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 32
+        },
+        "avatarColor": {
+          "type": "string",
+          "maxLength": 16,
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 120000
+        },
+        "bio": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "statusNote": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "statusNoteExpiresAtMs": {
+          "type": "number"
+        },
+        "friendsCount": {
+          "type": "number"
+        },
+        "online": {
+          "type": "boolean"
+        },
+        "lastSeenAtMs": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "usernameLower",
+        "displayName",
+        "avatarColor",
+        "bio",
+        "friendsCount",
+        "online",
+        "lastSeenAtMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UsernameClaim": {
+      "title": "UsernameClaim",
+      "description": "Unique lowercase username reservation mapped to owner UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9._\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "username", "createdAt"]
+    },
+    "UserBlock": {
+      "title": "UserBlock",
+      "description": "Private record of a blocked user under the blocker's profile.",
+      "type": "object",
+      "properties": {
+        "blockedUserId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9._\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 32
+        },
+        "avatarColor": {
+          "type": "string",
+          "maxLength": 16,
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 120000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["blockedUserId", "username", "displayName", "avatarColor", "createdAt"]
+    },
+    "ChatPref": {
+      "title": "ChatPref",
+      "description": "Owner-only per-conversation preferences including pin state, chat theme, clear timestamp, and last seen timestamp.",
+      "type": "object",
+      "properties": {
+        "roomId": {
+          "type": "string",
+          "maxLength": 260,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pinned": {
+          "type": "boolean"
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["default", "ocean", "lavender", "sunset", "forest", "midnight"]
+        },
+        "clearedAtMs": {
+          "type": "number"
+        },
+        "lastSeenAtMs": {
+          "type": "number"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["roomId", "pinned", "theme", "clearedAtMs", "lastSeenAtMs", "updatedAt"]
+    },
+    "SavedMessage": {
+      "title": "SavedMessage",
+      "description": "Owner-only bookmarked message snapshot.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomId": {
+          "type": "string",
+          "maxLength": 260,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomName": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "senderDisplayName": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "senderUsername": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "imageUrl": {
+          "type": "string",
+          "maxLength": 700000
+        },
+        "audioUrl": {
+          "type": "string",
+          "maxLength": 700000
+        },
+        "createdAtMs": {
+          "type": "number"
+        },
+        "savedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "roomId",
+        "roomName",
+        "senderDisplayName",
+        "senderUsername",
+        "content",
+        "createdAtMs",
+        "savedAt"
+      ]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "description": "Friend request state between two users keyed deterministically by sorted pair ID.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 260,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "receiverId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "accepted"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "senderId", "receiverId", "status", "createdAt", "updatedAt"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "1-to-1 DM room between two accepted friends with typing and read receipt cursors.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 260,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["dm"]
+        },
+        "userA": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userB": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userALastDeliveredAtMs": { "type": "number" },
+        "userALastSeenAtMs": { "type": "number" },
+        "userBLastDeliveredAtMs": { "type": "number" },
+        "userBLastSeenAtMs": { "type": "number" },
+        "typingUserAUntilMs": { "type": "number" },
+        "typingUserBUntilMs": { "type": "number" },
+        "lastMessageAtMs": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "type",
+        "userA",
+        "userB",
+        "createdBy",
+        "userALastDeliveredAtMs",
+        "userALastSeenAtMs",
+        "userBLastDeliveredAtMs",
+        "userBLastSeenAtMs",
+        "typingUserAUntilMs",
+        "typingUserBUntilMs",
+        "lastMessageAtMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Direct message document inside a DM room supporting text, image, voice note, reply, view-once flag, expiry, and reactions.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomId": {
+          "type": "string",
+          "maxLength": 260,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userA": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userB": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "participantIds": { "type": "array" },
+        "senderId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "content": { "type": "string", "maxLength": 2000 },
+        "imageUrl": { "type": "string", "maxLength": 700000 },
+        "audioUrl": { "type": "string", "maxLength": 700000 },
+        "audioDurationMs": { "type": "number" },
+        "replyToId": { "type": "string", "maxLength": 128 },
+        "replyTo": { "type": "object" },
+        "viewOnce": { "type": "boolean" },
+        "viewOnceConsumed": { "type": "boolean" },
+        "expiresAtMs": { "type": "number" },
+        "reactionsA": { "type": "array" },
+        "reactionsB": { "type": "array" },
+        "createdAtMs": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "roomId",
+        "userA",
+        "userB",
+        "participantIds",
+        "senderId",
+        "content",
+        "viewOnce",
+        "viewOnceConsumed",
+        "reactionsA",
+        "reactionsB",
+        "createdAtMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ViewOnceSnap": {
+      "title": "ViewOnceSnap",
+      "description": "Ephemeral snap payload burned atomically when viewed by the recipient.",
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomId": {
+          "type": "string",
+          "maxLength": 260,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "receiverId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "dataUrl": { "type": "string", "maxLength": 700000 },
+        "content": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["messageId", "roomId", "senderId", "receiverId", "content", "createdAt"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "24-hour photo story visible strictly to the author's accepted friends.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "viewerIds": { "type": "array" },
+        "imageUrl": { "type": "string", "maxLength": 700000 },
+        "caption": { "type": "string", "maxLength": 160 },
+        "createdAtMs": { "type": "number" },
+        "expiresAtMs": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "authorId", "viewerIds", "imageUrl", "caption", "createdAtMs", "expiresAtMs", "createdAt"]
+    },
+    "StoryView": {
+      "title": "StoryView",
+      "description": "View receipt recorded by a friend viewing a 24h story.",
+      "type": "object",
+      "properties": {
+        "viewerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "viewedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["viewerId", "viewedAt"]
+    },
+    "Call": {
+      "title": "Call",
+      "description": "1-to-1 WebRTC audio/video call signaling document between two DM friends.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomId": {
+          "type": "string",
+          "maxLength": 260,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "callerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "calleeId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "participantIds": { "type": "array" },
+        "kind": { "type": "string", "enum": ["audio", "video"] },
+        "status": { "type": "string", "enum": ["ringing", "active", "ended", "declined", "missed"] },
+        "offer": { "type": "object" },
+        "answer": { "type": "object" },
+        "createdAtMs": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "roomId",
+        "callerId",
+        "calleeId",
+        "participantIds",
+        "kind",
+        "status",
+        "offer",
+        "createdAtMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CallCandidate": {
+      "title": "CallCandidate",
+      "description": "WebRTC ICE candidate exchanged between caller and callee.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "candidateJson": { "type": "string", "maxLength": 4000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "senderId", "candidateJson", "createdAt"]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "Friends-only group chat room.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "avatarColor": {
+          "type": "string",
+          "maxLength": 16,
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "memberIds": { "type": "array" },
+        "typingUid": { "type": "string", "maxLength": 128 },
+        "typingName": { "type": "string", "maxLength": 40 },
+        "typingUntilMs": { "type": "number" },
+        "lastMessageAtMs": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "name",
+        "avatarColor",
+        "createdBy",
+        "memberIds",
+        "typingUntilMs",
+        "lastMessageAtMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GroupMessage": {
+      "title": "GroupMessage",
+      "description": "Message inside a friends-only group chat.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "groupId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "memberIds": { "type": "array" },
+        "senderId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "content": { "type": "string", "maxLength": 2000 },
+        "imageUrl": { "type": "string", "maxLength": 700000 },
+        "audioUrl": { "type": "string", "maxLength": 700000 },
+        "audioDurationMs": { "type": "number" },
+        "replyToId": { "type": "string", "maxLength": 128 },
+        "replyTo": { "type": "object" },
+        "expiresAtMs": { "type": "number" },
+        "reactionsByUser": { "type": "object" },
+        "createdAtMs": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "groupId",
+        "memberIds",
+        "senderId",
+        "content",
+        "reactionsByUser",
+        "createdAtMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Owner-only private user record holding verified email and username."
+    },
+    "/users/{userId}/blocks/{blockedUserId}": {
+      "schema": { "$ref": "#/entities/UserBlock" },
+      "description": "Owner-only list of blocked user IDs."
+    },
+    "/users/{userId}/chatPrefs/{roomId}": {
+      "schema": { "$ref": "#/entities/ChatPref" },
+      "description": "Owner-only per-conversation pin, theme, clear timestamp, and last seen state."
+    },
+    "/users/{userId}/savedMessages/{messageId}": {
+      "schema": { "$ref": "#/entities/SavedMessage" },
+      "description": "Owner-only bookmarked messages."
+    },
+    "/publicUsers/{userId}": {
+      "schema": { "$ref": "#/entities/PublicUser" },
+      "description": "Public profile records without PII, searchable by lowercase username."
+    },
+    "/usernames/{usernameLower}": {
+      "schema": { "$ref": "#/entities/UsernameClaim" },
+      "description": "Unique lowercase username claims preventing handle collisions."
+    },
+    "/friendRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/FriendRequest" },
+      "description": "Friend request records between senderId and receiverId."
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/Room" },
+      "description": "1-to-1 DM rooms between accepted friends."
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages belonging to a 1-to-1 DM room."
+    },
+    "/rooms/{roomId}/snaps/{messageId}": {
+      "schema": { "$ref": "#/entities/ViewOnceSnap" },
+      "description": "Ephemeral view-once snap payloads deleted immediately upon viewing."
+    },
+    "/stories/{storyId}": {
+      "schema": { "$ref": "#/entities/Story" },
+      "description": "24h photo stories visible only to accepted friends."
+    },
+    "/stories/{storyId}/views/{viewerId}": {
+      "schema": { "$ref": "#/entities/StoryView" },
+      "description": "Story view receipts written by viewers."
+    },
+    "/calls/{callId}": {
+      "schema": { "$ref": "#/entities/Call" },
+      "description": "1-to-1 WebRTC audio/video call signaling sessions."
+    },
+    "/calls/{callId}/candidates/{candidateId}": {
+      "schema": { "$ref": "#/entities/CallCandidate" },
+      "description": "WebRTC ICE candidates for a call."
+    },
+    "/groups/{groupId}": {
+      "schema": { "$ref": "#/entities/Group" },
+      "description": "Friends-only group chat rooms."
+    },
+    "/groups/{groupId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/GroupMessage" },
+      "description": "Messages belonging to a group chat."
+    }
+  }
+}
