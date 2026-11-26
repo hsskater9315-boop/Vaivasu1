@@ -779,6 +779,9 @@ export function getUserProfileData(targetUserId: string, viewerId: string): User
     relationship,
     requestId,
     roomId,
+    followersCount: 0,
+    followingCount: 0,
+    isFollowing: false,
   };
 }
 

@@ -265,32 +265,32 @@ export function StoriesAndNotesStrip({
   }
 
   return (
-    <div className="border-b border-slate-200/80 px-3 py-2.5 bg-white/70">
-      <div className="flex items-center justify-between mb-2 px-0.5">
-        <span className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-          Notes &amp; Stories
+    <div className="border-b border-slate-200/80 px-3.5 py-3 bg-white">
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+          Stories &amp; Notes
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => openComposer('note')}
-            className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+            className="rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors whitespace-nowrap"
           >
             {myActiveNote ? 'Edit Note' : '+ Note'}
           </button>
           <button
             type="button"
             onClick={() => openComposer('story')}
-            className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+            className="rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-[#FFEC1F] hover:bg-slate-800 transition-colors whitespace-nowrap"
           >
             + Story
           </button>
         </div>
       </div>
 
-      <div className="flex items-start gap-2.5 overflow-x-auto pb-1">
+      <div className="flex items-start gap-3 overflow-x-auto no-scrollbar pb-0.5 pt-1">
         {/* Current user tile */}
-        <div className="flex w-14 shrink-0 flex-col items-center">
+        <div className="flex w-16 shrink-0 flex-col items-center">
           <button
             type="button"
             onClick={() => {
@@ -300,38 +300,40 @@ export function StoriesAndNotesStrip({
                 openComposer('story');
               }
             }}
-            className="relative flex h-12 w-12 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="group relative flex items-center justify-center rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
             title={myStories.length > 0 ? 'View your 24h story' : 'Add 24h story or status note'}
           >
             <div
-              className={`rounded-xl p-0.5 ${
+              className={`rounded-2xl p-[2.5px] transition-transform group-hover:scale-[1.03] ${
                 myStories.length > 0
-                  ? 'ring-2 ring-blue-600 ring-offset-1'
-                  : 'ring-1 ring-slate-200'
+                  ? 'bg-gradient-to-tr from-[#FFEC1F] via-amber-500 to-blue-600'
+                  : 'bg-slate-200'
               }`}
             >
-              <Avatar
-                name={currentUser.displayName}
-                color={currentUser.avatarColor}
-                avatarUrl={currentUser.avatarUrl}
-                size="md"
-              />
+              <div className="rounded-[13px] bg-white p-[2px]">
+                <Avatar
+                  name={currentUser.displayName}
+                  color={currentUser.avatarColor}
+                  avatarUrl={currentUser.avatarUrl}
+                  size="md"
+                />
+              </div>
             </div>
-            <span className="absolute -right-1 -bottom-1 flex h-4 w-4 items-center justify-center rounded-full border border-white bg-blue-600 text-white">
-              <Plus className="h-2.5 w-2.5" aria-hidden="true" />
+            <span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-[#FFEC1F] shadow-xs">
+              <Plus className="h-3 w-3 stroke-[2.75]" aria-hidden="true" />
             </span>
           </button>
-          <span className="mt-1 max-w-full truncate text-[11px] font-medium text-slate-700">
-            You
+          <span className="mt-1.5 max-w-full truncate text-[11px] font-semibold text-slate-800">
+            My Story
           </span>
           {myActiveNote && (
             <button
               type="button"
               onClick={() => openComposer('note')}
               title={myActiveNote}
-              className="mt-0.5 max-w-full truncate rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 hover:bg-blue-100"
+              className="mt-0.5 max-w-full truncate text-[10px] font-medium text-blue-600 hover:underline"
             >
-              {myActiveNote}
+              “{myActiveNote}”
             </button>
           )}
         </div>
@@ -343,7 +345,7 @@ export function StoriesAndNotesStrip({
             hasStories && item.stories.every((s) => viewedStoryIds.has(s.id));
 
           return (
-            <div key={item.user.id} className="flex w-14 shrink-0 flex-col items-center">
+            <div key={item.user.id} className="flex w-16 shrink-0 flex-col items-center">
               <button
                 type="button"
                 onClick={() => {
@@ -353,7 +355,7 @@ export function StoriesAndNotesStrip({
                     setNotePreviewUser(item.user);
                   }
                 }}
-                className="relative flex h-12 w-12 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                className="group relative flex items-center justify-center rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                 title={
                   hasStories
                     ? `View ${item.user.displayName}'s story`
@@ -361,23 +363,25 @@ export function StoriesAndNotesStrip({
                 }
               >
                 <div
-                  className={`rounded-xl p-0.5 ${
+                  className={`rounded-2xl p-[2.5px] transition-transform group-hover:scale-[1.03] ${
                     hasStories
                       ? allSeen
-                        ? 'ring-2 ring-slate-300 ring-offset-1'
-                        : 'ring-2 ring-blue-600 ring-offset-1'
-                      : 'ring-1 ring-slate-200'
+                        ? 'bg-slate-300'
+                        : 'bg-gradient-to-tr from-[#FFEC1F] via-amber-500 to-blue-600'
+                      : 'bg-slate-200'
                   }`}
                 >
-                  <Avatar
-                    name={item.user.displayName}
-                    color={item.user.avatarColor}
-                    avatarUrl={item.user.avatarUrl}
-                    size="md"
-                  />
+                  <div className="rounded-[13px] bg-white p-[2px]">
+                    <Avatar
+                      name={item.user.displayName}
+                      color={item.user.avatarColor}
+                      avatarUrl={item.user.avatarUrl}
+                      size="md"
+                    />
+                  </div>
                 </div>
               </button>
-              <span className="mt-1 max-w-full truncate text-[11px] font-medium text-slate-700">
+              <span className="mt-1.5 max-w-full truncate text-[11px] font-medium text-slate-700">
                 {item.user.displayName.split(' ')[0]}
               </span>
               {item.note && (
@@ -385,9 +389,9 @@ export function StoriesAndNotesStrip({
                   type="button"
                   onClick={() => setNotePreviewUser(item.user)}
                   title={item.note}
-                  className="mt-0.5 max-w-full truncate rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700 hover:bg-slate-200"
+                  className="mt-0.5 max-w-full truncate text-[10px] font-medium text-slate-500 hover:text-slate-900"
                 >
-                  {item.note}
+                  “{item.note}”
                 </button>
               )}
             </div>
@@ -402,7 +406,7 @@ export function StoriesAndNotesStrip({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 backdrop-blur-xs p-4"
             onClick={() => !saving && setComposerOpen(false)}
             role="dialog"
             aria-modal="true"
@@ -412,11 +416,11 @@ export function StoriesAndNotesStrip({
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
-              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+              className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between gap-2 mb-4">
-                <h2 className="font-display text-base font-semibold text-slate-900">
+                <h2 className="font-display text-base font-bold text-slate-900">
                   24h Status &amp; Story
                 </h2>
                 <button
@@ -424,20 +428,20 @@ export function StoriesAndNotesStrip({
                   disabled={saving}
                   onClick={() => setComposerOpen(false)}
                   aria-label="Close modal"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-slate-100 p-1 mb-4">
+              <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1 mb-4">
                 <button
                   type="button"
                   onClick={() => {
                     setComposerTab('note');
                     setError(null);
                   }}
-                  className={`flex min-h-[38px] items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`flex min-h-[38px] items-center justify-center gap-1.5 rounded-xl text-xs font-semibold transition-all ${
                     composerTab === 'note'
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -452,7 +456,7 @@ export function StoriesAndNotesStrip({
                     setComposerTab('story');
                     setError(null);
                   }}
-                  className={`flex min-h-[38px] items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`flex min-h-[38px] items-center justify-center gap-1.5 rounded-xl text-xs font-semibold transition-all ${
                     composerTab === 'story'
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -481,9 +485,9 @@ export function StoriesAndNotesStrip({
                       value={noteDraft}
                       onChange={(e) => setNoteDraft(e.target.value)}
                       placeholder="What's on your mind right now?"
-                      className="w-full min-h-[42px] rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 focus:outline-none"
+                      className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-900/10 focus:outline-none"
                     />
-                    <div className="mt-1 flex justify-end font-mono text-[11px] text-slate-400">
+                    <div className="mt-1 flex justify-end font-mono text-[11px] text-slate-400 tabular-nums">
                       {noteDraft.length}/60
                     </div>
                   </div>
@@ -502,7 +506,7 @@ export function StoriesAndNotesStrip({
                       type="button"
                       disabled={saving}
                       onClick={() => void handleSaveNote()}
-                      className="min-h-[40px] rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                      className="min-h-[40px] rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                     >
                       {saving ? 'Saving...' : 'Save Note'}
                     </button>
@@ -521,17 +525,17 @@ export function StoriesAndNotesStrip({
                     className="hidden"
                   />
                   {storyImageUrl ? (
-                    <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
                       <img
                         src={storyImageUrl}
                         alt="Story preview"
-                        className="max-h-60 w-full object-contain bg-slate-950"
+                        className="max-h-60 w-full object-contain"
                       />
                       <button
                         type="button"
                         onClick={() => setStoryImageUrl(null)}
                         aria-label="Remove selected story photo"
-                        className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900/75 text-white hover:bg-slate-900"
+                        className="absolute top-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900/80 text-white hover:bg-slate-900"
                       >
                         <X className="h-4 w-4" aria-hidden="true" />
                       </button>
@@ -540,9 +544,9 @@ export function StoriesAndNotesStrip({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex w-full min-h-[120px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-4 text-xs font-medium text-slate-600 hover:border-blue-500 hover:bg-blue-50/40"
+                      className="flex w-full min-h-[124px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/80 p-4 text-xs font-semibold text-slate-600 hover:border-slate-900 hover:bg-slate-100/70 transition-colors"
                     >
-                      <Camera className="h-6 w-6 text-blue-600" aria-hidden="true" />
+                      <Camera className="h-6 w-6 text-slate-900" aria-hidden="true" />
                       <span>Choose a photo for your story</span>
                     </button>
                   )}
@@ -553,7 +557,7 @@ export function StoriesAndNotesStrip({
                     value={storyCaption}
                     onChange={(e) => setStoryCaption(e.target.value)}
                     placeholder="Add a caption (optional)"
-                    className="w-full min-h-[40px] rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 focus:outline-none"
+                    className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-900/10 focus:outline-none"
                   />
 
                   <div className="flex items-center justify-end gap-2 pt-1">
@@ -574,7 +578,7 @@ export function StoriesAndNotesStrip({
                       type="button"
                       disabled={saving || !storyImageUrl}
                       onClick={() => void handlePublishStory()}
-                      className="min-h-[40px] rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                      className="min-h-[40px] rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-[#FFEC1F] hover:bg-slate-800 disabled:opacity-50"
                     >
                       {saving ? 'Posting...' : 'Share Story'}
                     </button>
@@ -593,7 +597,7 @@ export function StoriesAndNotesStrip({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-[2px] p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 backdrop-blur-xs p-4"
             onClick={() => setNotePreviewUser(null)}
             role="dialog"
             aria-modal="true"
@@ -603,7 +607,7 @@ export function StoriesAndNotesStrip({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              className="w-full max-w-xs rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+              className="w-full max-w-xs rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-3">
@@ -622,7 +626,7 @@ export function StoriesAndNotesStrip({
                   </p>
                 </div>
               </div>
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-sm font-medium text-slate-800">
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm font-medium text-slate-800">
                 {notePreviewUser.statusNote}
               </div>
               <div className="mt-4 flex items-center justify-end gap-2">
@@ -641,7 +645,7 @@ export function StoriesAndNotesStrip({
                       setNotePreviewUser(null);
                       onOpenFriendChat(uid);
                     }}
-                    className="min-h-[38px] rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                    className="min-h-[38px] rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
                   >
                     Reply in Chat
                   </button>
@@ -666,17 +670,17 @@ export function StoriesAndNotesStrip({
             aria-label="Story viewer"
           >
             <div
-              className="relative flex h-full max-h-[760px] w-full max-w-md flex-col justify-between overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-2xl"
+              className="relative flex h-full max-h-[780px] w-full max-w-md flex-col justify-between overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 text-white shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Top progress & header */}
-              <div className="z-10 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-3.5">
+              <div className="z-10 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4">
                 <div className="flex items-center gap-1 mb-3">
                   {viewerStories.map((s, idx) => (
                     <div key={s.id} className="h-1 flex-1 overflow-hidden rounded-full bg-white/25">
                       <div
                         className={`h-full transition-all ${
-                          idx <= viewerIndex ? 'w-full bg-white' : 'w-0'
+                          idx <= viewerIndex ? 'w-full bg-[#FFEC1F]' : 'w-0'
                         }`}
                       />
                     </div>
@@ -704,7 +708,7 @@ export function StoriesAndNotesStrip({
                         onClick={() => void handleDeleteCurrentStory()}
                         aria-label="Delete story"
                         title="Delete story"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-red-300 hover:bg-red-500/20"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-red-300 hover:bg-red-500/20"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </button>
@@ -713,7 +717,7 @@ export function StoriesAndNotesStrip({
                       type="button"
                       onClick={() => setViewerStories(null)}
                       aria-label="Close story viewer"
-                      className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-white hover:bg-white/20"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20"
                     >
                       <X className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -734,7 +738,7 @@ export function StoriesAndNotesStrip({
                     type="button"
                     onClick={() => setViewerIndex((i) => Math.max(0, i - 1))}
                     aria-label="Previous story"
-                    className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/75"
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/80"
                   >
                     <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                   </button>
@@ -746,7 +750,7 @@ export function StoriesAndNotesStrip({
                       setViewerIndex((i) => Math.min(viewerStories.length - 1, i + 1))
                     }
                     aria-label="Next story"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/75"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/80"
                   >
                     <ChevronRight className="h-5 w-5" aria-hidden="true" />
                   </button>
@@ -766,7 +770,7 @@ export function StoriesAndNotesStrip({
                     <button
                       type="button"
                       onClick={() => setShowViewersList((v) => !v)}
-                      className="mx-auto flex min-h-[36px] items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20"
+                      className="mx-auto flex min-h-[36px] items-center gap-1.5 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20"
                     >
                       <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>
@@ -775,7 +779,7 @@ export function StoriesAndNotesStrip({
                     </button>
 
                     {showViewersList && (
-                      <div className="mt-2.5 max-h-36 overflow-y-auto rounded-xl border border-white/15 bg-slate-900/95 p-2.5 space-y-1.5">
+                      <div className="mt-2.5 max-h-36 overflow-y-auto rounded-2xl border border-white/15 bg-slate-900/95 p-3 space-y-1.5">
                         {ownViews.filter((v) => v.viewerId !== currentUser.id).length === 0 ? (
                           <p className="text-center text-xs text-slate-400">No friend views yet</p>
                         ) : (

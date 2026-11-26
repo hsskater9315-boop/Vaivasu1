@@ -1062,12 +1062,35 @@ export async function loadUserProfileData(params: {
   incomingBySenderId: Map<string, FriendRequestItem>;
   outgoingByReceiverId: Map<string, FriendRequestItem>;
 }): Promise<UserProfileData> {
-  const targetUser = await fetchPublicUser(params.targetUserId);
+  const isSelf = params.targetUserId === params.myUid;
+  const followRowId = `follow__${params.myUid}__${params.targetUserId}`;
+
+  const [targetUser, followersRes, followingRes, isFollowingRes] = await Promise.all([
+    fetchPublicUser(params.targetUserId),
+    supabase
+      .from('friend_requests')
+      .select('sender_id', { count: 'exact', head: true })
+      .eq('receiver_id', params.targetUserId)
+      .eq('status', 'following'),
+    supabase
+      .from('friend_requests')
+      .select('receiver_id', { count: 'exact', head: true })
+      .eq('sender_id', params.targetUserId)
+      .eq('status', 'following'),
+    !isSelf
+      ? supabase
+          .from('friend_requests')
+          .select('id')
+          .eq('id', followRowId)
+          .eq('status', 'following')
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
   if (!targetUser) {
     throw new Error('User not found.');
   }
 
-  const isSelf = params.targetUserId === params.myUid;
   const myFriends = params.myRooms
     .map((r) => r.otherUser)
     .filter((u): u is PublicUser => Boolean(u));
@@ -1097,9 +1120,16 @@ export async function loadUserProfileData(params: {
   }
 
   const sharedImages: SharedProfileImage[] = [];
+  const followersCount = followersRes.count ?? 0;
+  const followingCount = followingRes.count ?? 0;
+  const isFollowing = Boolean(isFollowingRes.data);
 
   return {
-    user: targetUser,
+    user: {
+      ...targetUser,
+      followersCount,
+      followingCount,
+    },
     friendsCount: isSelf ? myFriends.length : (targetUser.friendsCount ?? 0),
     friends: isSelf ? myFriends : [],
     sharedImagesCount: sharedImages.length,
@@ -1108,7 +1138,66 @@ export async function loadUserProfileData(params: {
     relationship,
     requestId,
     roomId,
+    followersCount,
+    followingCount,
+    isFollowing,
   };
+}
+
+export async function toggleFollowUser(
+  myUid: string,
+  targetUid: string,
+  shouldFollow: boolean,
+): Promise<{ isFollowing: boolean }> {
+  const followId = `follow__${myUid}__${targetUid}`;
+  if (shouldFollow) {
+    const { error } = await supabase.from('friend_requests').upsert({
+      id: followId,
+      sender_id: myUid,
+      receiver_id: targetUid,
+      status: 'following',
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(error.message);
+    return { isFollowing: true };
+  } else {
+    const { error } = await supabase.from('friend_requests').delete().eq('id', followId);
+    if (error) throw new Error(error.message);
+    return { isFollowing: false };
+  }
+}
+
+export async function fetchUsersByIds(userIds: string[]): Promise<PublicUser[]> {
+  if (userIds.length === 0) return [];
+  const unique = Array.from(new Set(userIds)).slice(0, 50);
+  const { data } = await supabase
+    .from('public_users')
+    .select('*')
+    .in('id', unique);
+  if (!data) return [];
+  return data.map(mapPublicUserRow);
+}
+
+export async function fetchFollowersList(userId: string): Promise<PublicUser[]> {
+  const { data } = await supabase
+    .from('friend_requests')
+    .select('sender_id')
+    .eq('receiver_id', userId)
+    .eq('status', 'following');
+  if (!data || data.length === 0) return [];
+  const uids = data.map((d) => String(d.sender_id)).filter(Boolean);
+  return await fetchUsersByIds(uids);
+}
+
+export async function fetchFollowingList(userId: string): Promise<PublicUser[]> {
+  const { data } = await supabase
+    .from('friend_requests')
+    .select('receiver_id')
+    .eq('sender_id', userId)
+    .eq('status', 'following');
+  if (!data || data.length === 0) return [];
+  const uids = data.map((d) => String(d.receiver_id)).filter(Boolean);
+  return await fetchUsersByIds(uids);
 }
 
 // ---------- 1. Status Notes & 24h Stories ----------

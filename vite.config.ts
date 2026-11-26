@@ -24,10 +24,11 @@ export default defineConfig(() => {
           name: 'ForVasu — Private Messaging',
           short_name: 'ForVasu',
           description: 'Private real-time messaging app with friend requests, photos, voice notes, and view-once snaps.',
-          theme_color: '#2563eb',
-          background_color: '#f8fafc',
+          theme_color: '#ffffff',
+          background_color: '#f4f6f9',
           display: 'standalone',
-          orientation: 'portrait-primary',
+          display_override: ['standalone', 'minimal-ui'],
+          orientation: 'portrait',
           start_url: '/',
           scope: '/',
           icons: [
@@ -87,8 +88,7 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       }),
       // Copies src/assets into dist/ so root-relative URLs like

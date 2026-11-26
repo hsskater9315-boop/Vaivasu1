@@ -9,6 +9,7 @@ export interface PublicUser {
   statusNoteExpiresAtMs?: number;
   friendsCount?: number;
   followersCount?: number;
+  followingCount?: number;
   isVerified?: boolean;
   isAdmin?: boolean;
   online?: boolean;
@@ -145,6 +146,9 @@ export interface UserProfileData {
   relationship: RelationshipStatus;
   requestId?: string;
   roomId?: string;
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
 }
 
 export interface MessageReaction {

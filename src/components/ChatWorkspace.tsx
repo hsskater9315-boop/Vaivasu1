@@ -49,6 +49,8 @@ import {
   declineOrCancelFriendRequest,
   deleteGroupMessage,
   deleteMessageFromRoom,
+  ensureDeveloperChatForUser,
+  isDeveloperUser,
   MAX_MEDIA_DATA_URL_LENGTH,
   openAndBurnViewOnceSnap,
   removeSavedMessage,
@@ -91,7 +93,8 @@ import type {
 } from '../types/chat';
 import { playNotificationChime } from '../utils/sound';
 import { AddFriendModal } from './AddFriendModal';
-import { Avatar } from './Avatar';
+import { AdminModal } from './AdminModal';
+import { Avatar, VerifiedBadge } from './Avatar';
 import { CallModal } from './CallModal';
 import type { OutgoingCallRequest } from './CallModal';
 import { CreateGroupModal } from './CreateGroupModal';
@@ -124,15 +127,15 @@ interface ThemeStyle {
 
 const CHAT_THEMES: Record<ChatTheme, ThemeStyle> = {
   default: {
-    label: 'Clean White',
-    swatch: '#FFFFFF',
-    bgClass: 'bg-white',
+    label: 'Studio Canvas',
+    swatch: '#F7F8FA',
+    bgClass: 'bg-[#f7f8fa] chat-canvas-dots',
     isDark: false,
     textClass: 'text-slate-800',
     mutedClass: 'text-slate-400',
-    hoverClass: 'hover:bg-slate-50',
-    dividerClass: 'bg-slate-200',
-    replyClass: 'border-blue-500 bg-slate-100/80 text-slate-600',
+    hoverClass: 'hover:bg-slate-200/35',
+    dividerClass: 'bg-slate-200/90',
+    replyClass: 'bg-slate-100 text-slate-600',
     reactionDefaultClass: 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100',
   },
   ocean: {
@@ -144,7 +147,7 @@ const CHAT_THEMES: Record<ChatTheme, ThemeStyle> = {
     mutedClass: 'text-slate-500',
     hoverClass: 'hover:bg-sky-100/60',
     dividerClass: 'bg-sky-200',
-    replyClass: 'border-sky-600 bg-white/80 text-slate-700',
+    replyClass: 'bg-sky-100/75 text-slate-700',
     reactionDefaultClass: 'border-sky-200 bg-white/90 text-slate-700 hover:bg-sky-100',
   },
   lavender: {
@@ -156,7 +159,7 @@ const CHAT_THEMES: Record<ChatTheme, ThemeStyle> = {
     mutedClass: 'text-slate-500',
     hoverClass: 'hover:bg-violet-100/60',
     dividerClass: 'bg-violet-200',
-    replyClass: 'border-violet-600 bg-white/80 text-slate-700',
+    replyClass: 'bg-violet-100/75 text-slate-700',
     reactionDefaultClass: 'border-violet-200 bg-white/90 text-slate-700 hover:bg-violet-100',
   },
   sunset: {
@@ -168,7 +171,7 @@ const CHAT_THEMES: Record<ChatTheme, ThemeStyle> = {
     mutedClass: 'text-slate-500',
     hoverClass: 'hover:bg-amber-100/60',
     dividerClass: 'bg-amber-200',
-    replyClass: 'border-amber-600 bg-white/80 text-slate-700',
+    replyClass: 'bg-amber-100/75 text-slate-700',
     reactionDefaultClass: 'border-amber-200 bg-white/90 text-slate-700 hover:bg-amber-100',
   },
   forest: {
@@ -180,7 +183,7 @@ const CHAT_THEMES: Record<ChatTheme, ThemeStyle> = {
     mutedClass: 'text-slate-500',
     hoverClass: 'hover:bg-emerald-100/60',
     dividerClass: 'bg-emerald-200',
-    replyClass: 'border-emerald-600 bg-white/80 text-slate-700',
+    replyClass: 'bg-emerald-100/75 text-slate-700',
     reactionDefaultClass: 'border-emerald-200 bg-white/90 text-slate-700 hover:bg-emerald-100',
   },
   midnight: {
@@ -192,7 +195,7 @@ const CHAT_THEMES: Record<ChatTheme, ThemeStyle> = {
     mutedClass: 'text-slate-400',
     hoverClass: 'hover:bg-slate-900/90',
     dividerClass: 'bg-slate-800',
-    replyClass: 'border-blue-400 bg-slate-900 text-slate-200',
+    replyClass: 'bg-slate-900 text-slate-200',
     reactionDefaultClass: 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800',
   },
 };
@@ -303,6 +306,8 @@ export function ChatWorkspace({
   const [chatSearchOpen, setChatSearchOpen] = useState(false);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [chatSearchCursor, setChatSearchCursor] = useState(0);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [sidebarFeedTab, setSidebarFeedTab] = useState<'all' | 'friends' | 'groups'>('all');
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -321,6 +326,8 @@ export function ChatWorkspace({
   const otherUsersRef = useRef<Record<string, PublicUser>>({});
   const currentUserRef = useRef(currentUser);
   const chatPrefsRef = useRef<Record<string, ChatPref>>({});
+  const rawRoomsRef = useRef<RawRoomDoc[]>(rawRooms);
+  const messagesByRoomRef = useRef<Record<string, ChatMessage[]>>(messagesByRoom);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -348,6 +355,14 @@ export function ChatWorkspace({
   useEffect(() => {
     chatPrefsRef.current = chatPrefsByRoomId;
   }, [chatPrefsByRoomId]);
+
+  useEffect(() => {
+    rawRoomsRef.current = rawRooms;
+  }, [rawRooms]);
+
+  useEffect(() => {
+    messagesByRoomRef.current = messagesByRoom;
+  }, [messagesByRoom]);
 
   const rooms = useMemo<Room[]>(() => {
     return rawRooms.map((r) => {
@@ -434,6 +449,7 @@ export function ChatWorkspace({
   useEffect(() => {
     setBootstrapLoading(true);
     setBootstrapError(null);
+    void ensureDeveloperChatForUser(currentUser.id);
 
     const unsubRooms = subscribeUserRooms(currentUser.id, (nextRawRooms) => {
       setRawRooms(nextRawRooms);
@@ -680,10 +696,11 @@ export function ChatWorkspace({
               }
             }
           }
+          const hasNewMsg = !prevSeen || msgs.some((m) => !prevSeen.has(m.id));
           seenMessageIdsByRoomRef.current[raw.id] = new Set(msgs.map((m) => m.id));
           setMessagesByRoom((prev) => ({ ...prev, [raw.id]: msgs }));
 
-          if (raw.id === activeRoomIdRef.current && shouldStickToBottomRef.current) {
+          if (hasNewMsg && raw.id === activeRoomIdRef.current && shouldStickToBottomRef.current) {
             requestAnimationFrame(() => scrollToBottom('auto'));
           }
         },
@@ -733,10 +750,11 @@ export function ChatWorkspace({
               }
             }
           }
+          const hasNewMsg = !prevSeen || msgs.some((m) => !prevSeen.has(m.id));
           seenMessageIdsByRoomRef.current[gid] = new Set(msgs.map((m) => m.id));
           setMessagesByRoom((prev) => ({ ...prev, [gid]: msgs }));
 
-          if (gid === activeRoomIdRef.current && shouldStickToBottomRef.current) {
+          if (hasNewMsg && gid === activeRoomIdRef.current && shouldStickToBottomRef.current) {
             requestAnimationFrame(() => scrollToBottom('auto'));
           }
         },
@@ -753,7 +771,7 @@ export function ChatWorkspace({
     (targetId: string) => {
       if (document.visibilityState !== 'visible') return;
       const now = Date.now();
-      const dmRoom = rawRooms.find((r) => r.id === targetId);
+      const dmRoom = rawRoomsRef.current.find((r) => r.id === targetId);
       if (dmRoom) {
         void updateRoomActivityCursor({
           room: {
@@ -774,7 +792,7 @@ export function ChatWorkspace({
       }
 
       const pref = chatPrefsRef.current[targetId];
-      const latestMsgMs = (messagesByRoom[targetId] ?? []).at(-1)?.createdAt ?? 0;
+      const latestMsgMs = (messagesByRoomRef.current[targetId] ?? []).at(-1)?.createdAt ?? 0;
       if (!pref || latestMsgMs > pref.lastSeenAtMs) {
         void upsertChatPref({
           myUid: currentUser.id,
@@ -784,7 +802,7 @@ export function ChatWorkspace({
         });
       }
     },
-    [rawRooms, currentUser.id, messagesByRoom],
+    [currentUser.id],
   );
 
   useEffect(() => {
@@ -1582,28 +1600,44 @@ export function ChatWorkspace({
     }
   }
 
+  const isCurrentUserDev = isDeveloperUser(currentUser.username);
+
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-slate-50 border-r border-slate-200">
-      <div className="flex h-16 items-center justify-between gap-2 border-b border-slate-200 px-3.5">
-        <div className="flex items-center gap-2 whitespace-nowrap shrink-0">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-            <MessageSquare className="h-4 w-4" aria-hidden="true" />
+    <div className="flex h-full flex-col bg-white border-r border-slate-200/80">
+      {/* Brand Header */}
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3.5">
+        <div className="flex items-center gap-2.5 whitespace-nowrap shrink-0">
+          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-[#FFEC1F] shadow-xs">
+            <MessageSquare className="h-4.5 w-4.5" aria-hidden="true" />
+            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-[#FFEC1F] ring-2 ring-white" />
           </div>
           <span className="font-display text-base font-bold tracking-tight text-slate-900">
             ForVasu
           </span>
         </div>
+
         <div className="flex items-center gap-1.5">
+          {isCurrentUserDev && (
+            <button
+              type="button"
+              onClick={() => setAdminModalOpen(true)}
+              title="Developer & Admin Console"
+              aria-label="Open Admin Console"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors"
+            >
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setSavedModalOpen(true)}
             title="Saved Messages"
             aria-label="Saved Messages"
-            className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >
             <Bookmark className="h-4 w-4" aria-hidden="true" />
             {savedMessages.length > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 font-mono text-[10px] font-semibold text-white tabular-nums">
+              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 font-mono text-[10px] font-bold text-white tabular-nums">
                 {savedMessages.length}
               </span>
             )}
@@ -1611,16 +1645,16 @@ export function ChatWorkspace({
           <button
             type="button"
             onClick={() => setAddFriendOpen(true)}
-            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors whitespace-nowrap"
           >
-            <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+            <UserPlus className="h-3.5 w-3.5 text-[#FFEC1F]" aria-hidden="true" />
             <span>Add</span>
           </button>
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close sidebar"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-200/70 lg:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 lg:hidden"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -1640,7 +1674,8 @@ export function ChatWorkspace({
         }}
       />
 
-      <div className="px-3 py-2.5 border-b border-slate-200/80">
+      {/* Search + Segmented Feed Tabs */}
+      <div className="px-3.5 pt-2.5 pb-2 border-b border-slate-200/70 space-y-2 bg-slate-50/40">
         <div className="relative">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
@@ -1650,19 +1685,43 @@ export function ChatWorkspace({
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter friends & groups"
+            placeholder="Search chats, friends & groups..."
             aria-label="Filter friends and groups"
-            className="block w-full min-h-[36px] rounded-lg border border-slate-200 bg-white py-1.5 pr-3 pl-8 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 focus:outline-none"
+            className="block w-full min-h-[36px] rounded-xl border border-slate-200 bg-white py-1.5 pr-3 pl-8 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:outline-none"
           />
+        </div>
+
+        <div className="grid grid-cols-3 rounded-xl bg-slate-200/60 p-0.5">
+          {(['all', 'friends', 'groups'] as const).map((tabKey) => {
+            const active = sidebarFeedTab === tabKey;
+            const label =
+              tabKey === 'all' ? 'All' : tabKey === 'friends' ? 'Friends' : 'Groups';
+            return (
+              <button
+                key={tabKey}
+                type="button"
+                onClick={() => setSidebarFeedTab(tabKey)}
+                className={`min-h-[30px] rounded-[10px] text-[11px] font-semibold transition-all whitespace-nowrap ${
+                  active
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6" aria-label="Chats and groups">
+      <nav className="flex-1 overflow-y-auto px-3 py-3.5 space-y-5" aria-label="Chats and groups">
         {incomingRequests.length > 0 && (
           <div>
             <div className="flex items-center justify-between px-2 mb-2">
-              <h2 className="text-xs font-semibold text-slate-500">Add Requests</h2>
-              <span className="font-mono text-xs font-semibold text-blue-600 tabular-nums">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Add Requests
+              </h2>
+              <span className="font-mono text-xs font-bold text-blue-600 tabular-nums">
                 {incomingRequests.length}
               </span>
             </div>
@@ -1670,7 +1729,7 @@ export function ChatWorkspace({
               {incomingRequests.map((req) => {
                 const isBusy = busyRequestId === req.id;
                 return (
-                  <li key={req.id} className="rounded-xl border border-slate-200 bg-white p-2.5">
+                  <li key={req.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar
                         name={req.user.displayName}
@@ -1679,9 +1738,12 @@ export function ChatWorkspace({
                         size="sm"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-900">
-                          {req.user.displayName}
-                        </p>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">
+                            {req.user.displayName}
+                          </p>
+                          {isDeveloperUser(req.user.username) && <VerifiedBadge size="sm" />}
+                        </div>
                         <p className="truncate font-mono text-xs text-slate-500">
                           @{req.user.username}
                         </p>
@@ -1692,7 +1754,7 @@ export function ChatWorkspace({
                         type="button"
                         disabled={isBusy}
                         onClick={() => void handleAcceptRequest(req.id)}
-                        className="flex-1 min-h-[34px] rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                        className="flex-1 min-h-[34px] rounded-xl bg-slate-900 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                       >
                         Accept
                       </button>
@@ -1700,7 +1762,7 @@ export function ChatWorkspace({
                         type="button"
                         disabled={isBusy}
                         onClick={() => void handleDeclineOrCancelRequest(req.id)}
-                        className="min-h-[34px] rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                        className="min-h-[34px] rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-60"
                       >
                         Ignore
                       </button>
@@ -1712,198 +1774,222 @@ export function ChatWorkspace({
           </div>
         )}
 
-        <div>
-          <div className="flex items-center justify-between px-2 mb-1.5">
-            <h2 className="text-xs font-semibold text-slate-500">Friends</h2>
-            <span className="font-mono text-xs text-slate-400 tabular-nums">
-              {filteredRooms.length}
-            </span>
-          </div>
-
-          {filteredRooms.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-xs text-slate-600">
-              <p className="font-medium text-slate-800">No chats yet</p>
-              <p className="mt-1 leading-relaxed text-slate-500">
-                Search someone by username or ID and send an add request. Chat opens once they
-                accept.
-              </p>
-              <button
-                type="button"
-                onClick={() => setAddFriendOpen(true)}
-                className="mt-3 inline-flex w-full min-h-[36px] items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-              >
-                <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Find by Username</span>
-              </button>
+        {(sidebarFeedTab === 'all' || sidebarFeedTab === 'friends') && (
+          <div>
+            <div className="flex items-center justify-between px-2 mb-1.5">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Direct Chats
+              </h2>
+              <span className="font-mono text-[11px] font-medium text-slate-400 tabular-nums">
+                {filteredRooms.length}
+              </span>
             </div>
-          ) : (
-            <ul className="space-y-0.5">
-              {filteredRooms.map((room) => {
-                const isActive = room.id === activeRoomId;
-                const otherUser = room.otherUser;
-                const isOnline = otherUser ? onlineUserIds.has(otherUser.id) : false;
-                const unread = unreadByRoom[room.id] ?? 0;
-                const streak = streakByRoomId[room.id] ?? 0;
-                const isPinned = Boolean(chatPrefsByRoomId[room.id]?.pinned);
 
-                return (
-                  <li key={room.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveRoomId(room.id);
-                        setSidebarOpen(false);
-                      }}
-                      className={`flex w-full min-h-[46px] items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${
-                        isActive
-                          ? 'bg-blue-600 text-white'
-                          : 'text-slate-700 hover:bg-slate-200/70 hover:text-slate-900'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5 min-w-0">
-                        <Avatar
-                          name={room.name}
-                          color={otherUser?.avatarColor || '#1E3A8A'}
-                          avatarUrl={otherUser?.avatarUrl}
-                          size="sm"
-                          showPresence
-                          online={isOnline}
-                        />
-                        <span className="min-w-0">
-                          <span className="flex items-center gap-1.5 min-w-0">
-                            <span className="truncate text-sm font-medium">{room.name}</span>
-                            {isPinned && (
-                              <Pin
-                                className={`h-3 w-3 shrink-0 ${
-                                  isActive ? 'text-blue-100' : 'text-slate-400'
+            {filteredRooms.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-xs text-slate-600">
+                <p className="font-semibold text-slate-900">No chats yet</p>
+                <p className="mt-1 leading-relaxed text-slate-500">
+                  Search someone by username or ID and send an add request. Chat opens once they
+                  accept.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAddFriendOpen(true)}
+                  className="mt-3 inline-flex w-full min-h-[38px] items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                >
+                  <UserPlus className="h-3.5 w-3.5 text-[#FFEC1F]" aria-hidden="true" />
+                  <span>Find by Username</span>
+                </button>
+              </div>
+            ) : (
+              <ul className="space-y-1">
+                {filteredRooms.map((room) => {
+                  const isActive = room.id === activeRoomId;
+                  const otherUser = room.otherUser;
+                  const isOnline = otherUser ? onlineUserIds.has(otherUser.id) : false;
+                  const unread = unreadByRoom[room.id] ?? 0;
+                  const streak = streakByRoomId[room.id] ?? 0;
+                  const isPinned = Boolean(chatPrefsByRoomId[room.id]?.pinned);
+                  const isDev = Boolean(otherUser && isDeveloperUser(otherUser.username));
+
+                  return (
+                    <li key={room.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveRoomId(room.id);
+                          setSidebarOpen(false);
+                        }}
+                        className={`flex w-full min-h-[54px] items-center justify-between gap-2.5 rounded-2xl px-2.5 py-2 text-left transition-all ${
+                          isActive
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <Avatar
+                            name={room.name}
+                            color={otherUser?.avatarColor || '#1E3A8A'}
+                            avatarUrl={otherUser?.avatarUrl}
+                            size="md"
+                            showPresence
+                            online={isOnline}
+                          />
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-1 min-w-0">
+                              <span
+                                className={`truncate text-sm ${
+                                  unread > 0 && !isActive ? 'font-bold text-slate-900' : 'font-semibold'
                                 }`}
-                                aria-label="Pinned"
-                              />
-                            )}
-                          </span>
-                          <span
-                            className={`block truncate text-xs ${
-                              isActive
-                                ? 'text-blue-100'
+                              >
+                                {room.name}
+                              </span>
+                              {isDev && <VerifiedBadge size="sm" />}
+                              {isPinned && (
+                                <Pin
+                                  className={`h-3 w-3 shrink-0 ml-0.5 ${
+                                    isActive ? 'text-amber-300' : 'text-slate-400'
+                                  }`}
+                                  aria-label="Pinned"
+                                />
+                              )}
+                            </span>
+                            <span
+                              className={`block truncate text-xs ${
+                                isActive
+                                  ? 'text-slate-300'
+                                  : unread > 0
+                                    ? 'font-semibold text-blue-600'
+                                    : isOnline
+                                      ? 'text-emerald-600 font-medium'
+                                      : 'text-slate-400'
+                              }`}
+                            >
+                              {unread > 0 && !isActive
+                                ? `${unread} new ${unread === 1 ? 'message' : 'messages'}`
                                 : isOnline
-                                  ? 'text-emerald-700'
-                                  : 'text-slate-400'
-                            }`}
-                          >
-                            {isOnline ? 'Online' : formatLastSeen(otherUser?.lastSeenAt)}
+                                  ? 'Active now'
+                                  : formatLastSeen(otherUser?.lastSeenAt)}
+                            </span>
                           </span>
                         </span>
-                      </span>
 
-                      <span className="flex items-center gap-1.5 shrink-0">
-                        {streak > 0 && (
-                          <span
-                            title={`${streak}-day chat streak`}
-                            className={`inline-flex items-center gap-0.5 font-mono text-[11px] font-semibold tabular-nums ${
-                              isActive ? 'text-amber-200' : 'text-amber-600'
-                            }`}
-                          >
-                            <Flame className="h-3 w-3" aria-hidden="true" />
-                            <span>{streak}</span>
+                        <span className="flex items-center gap-1.5 shrink-0">
+                          {streak > 0 && (
+                            <span
+                              title={`${streak}-day chat streak`}
+                              className={`inline-flex items-center gap-0.5 font-mono text-[11px] font-bold tabular-nums ${
+                                isActive ? 'text-[#FFEC1F]' : 'text-orange-500'
+                              }`}
+                            >
+                              <Flame className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                              <span>{streak}</span>
+                            </span>
+                          )}
+                          {unread > 0 && !isActive && (
+                            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 font-mono text-[11px] font-bold text-white tabular-nums">
+                              {unread}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* Friends-Only Group Chats */}
+        {(sidebarFeedTab === 'all' || sidebarFeedTab === 'groups') && (
+          <div>
+            <div className="flex items-center justify-between px-2 mb-1.5">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Groups
+              </h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingGroup(null);
+                  setGroupModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                <Plus className="h-3 w-3" aria-hidden="true" />
+                <span>New Group</span>
+              </button>
+            </div>
+
+            {filteredGroups.length === 0 ? (
+              <p className="px-2 text-xs text-slate-400">
+                {groups.length === 0
+                  ? 'Create a group with your friends.'
+                  : 'No matching groups.'}
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {filteredGroups.map((grp) => {
+                  const isActive = grp.id === activeRoomId;
+                  const unread = unreadByRoom[grp.id] ?? 0;
+                  const isPinned = Boolean(chatPrefsByRoomId[grp.id]?.pinned);
+                  return (
+                    <li key={grp.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveRoomId(grp.id);
+                          setSidebarOpen(false);
+                        }}
+                        className={`flex w-full min-h-[54px] items-center justify-between gap-2.5 rounded-2xl px-2.5 py-2 text-left transition-all ${
+                          isActive
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <Avatar name={grp.name} color={grp.avatarColor} size="md" />
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <span className="truncate text-sm font-semibold">{grp.name}</span>
+                              {isPinned && (
+                                <Pin
+                                  className={`h-3 w-3 shrink-0 ${
+                                    isActive ? 'text-amber-300' : 'text-slate-400'
+                                  }`}
+                                  aria-label="Pinned"
+                                />
+                              )}
+                            </span>
+                            <span
+                              className={`block truncate text-xs ${
+                                isActive ? 'text-slate-300' : 'text-slate-400'
+                              }`}
+                            >
+                              {grp.memberIds.length} members
+                            </span>
                           </span>
-                        )}
+                        </span>
                         {unread > 0 && !isActive && (
-                          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 font-mono text-[11px] font-semibold text-white tabular-nums">
+                          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 font-mono text-[11px] font-bold text-white tabular-nums shrink-0">
                             {unread}
                           </span>
                         )}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        {/* Friends-Only Group Chats */}
-        <div>
-          <div className="flex items-center justify-between px-2 mb-1.5">
-            <h2 className="text-xs font-semibold text-slate-500">Groups</h2>
-            <button
-              type="button"
-              onClick={() => {
-                setEditingGroup(null);
-                setGroupModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-blue-600 hover:bg-blue-50"
-            >
-              <Plus className="h-3 w-3" aria-hidden="true" />
-              <span>New</span>
-            </button>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
-
-          {filteredGroups.length === 0 ? (
-            <p className="px-2 text-xs text-slate-400">
-              {groups.length === 0
-                ? 'Create a group with your friends.'
-                : 'No matching groups.'}
-            </p>
-          ) : (
-            <ul className="space-y-0.5">
-              {filteredGroups.map((grp) => {
-                const isActive = grp.id === activeRoomId;
-                const unread = unreadByRoom[grp.id] ?? 0;
-                const isPinned = Boolean(chatPrefsByRoomId[grp.id]?.pinned);
-                return (
-                  <li key={grp.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveRoomId(grp.id);
-                        setSidebarOpen(false);
-                      }}
-                      className={`flex w-full min-h-[46px] items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${
-                        isActive
-                          ? 'bg-blue-600 text-white'
-                          : 'text-slate-700 hover:bg-slate-200/70 hover:text-slate-900'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5 min-w-0">
-                        <Avatar name={grp.name} color={grp.avatarColor} size="sm" />
-                        <span className="min-w-0">
-                          <span className="flex items-center gap-1.5 min-w-0">
-                            <span className="truncate text-sm font-medium">{grp.name}</span>
-                            {isPinned && (
-                              <Pin
-                                className={`h-3 w-3 shrink-0 ${
-                                  isActive ? 'text-blue-100' : 'text-slate-400'
-                                }`}
-                                aria-label="Pinned"
-                              />
-                            )}
-                          </span>
-                          <span
-                            className={`block truncate text-xs ${
-                              isActive ? 'text-blue-100' : 'text-slate-400'
-                            }`}
-                          >
-                            {grp.memberIds.length} members
-                          </span>
-                        </span>
-                      </span>
-                      {unread > 0 && !isActive && (
-                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 font-mono text-[11px] font-semibold text-white tabular-nums shrink-0">
-                          {unread}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+        )}
 
         {outgoingRequests.length > 0 && (
           <div>
             <div className="flex items-center justify-between px-2 mb-1.5">
-              <h2 className="text-xs font-semibold text-slate-500">Sent Requests</h2>
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Sent Requests
+              </h2>
               <span className="font-mono text-xs text-slate-400 tabular-nums">
                 {outgoingRequests.length}
               </span>
@@ -1912,10 +1998,10 @@ export function ChatWorkspace({
               {outgoingRequests.map((req) => (
                 <li
                   key={req.id}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2"
+                  className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-slate-900">
+                    <p className="truncate text-xs font-semibold text-slate-900">
                       {req.user.displayName}
                     </p>
                     <p className="truncate font-mono text-[11px] text-slate-500">
@@ -1926,7 +2012,7 @@ export function ChatWorkspace({
                     type="button"
                     disabled={busyRequestId === req.id}
                     onClick={() => void handleDeclineOrCancelRequest(req.id)}
-                    className="shrink-0 text-xs font-medium text-slate-500 hover:text-red-600"
+                    className="shrink-0 text-xs font-semibold text-slate-500 hover:text-red-600"
                   >
                     Cancel
                   </button>
@@ -1937,15 +2023,15 @@ export function ChatWorkspace({
         )}
       </nav>
 
-      <div className="border-t border-slate-200 bg-white p-3">
-        <div className="flex items-center justify-between gap-2">
+      <div className="border-t border-slate-200/80 bg-white">
+        <div className="flex items-center justify-between gap-2 p-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={() => setProfileUserId(currentUser.id)}
               aria-label="Open your profile"
               title="My Profile"
-              className="rounded-lg focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:outline-none"
+              className="rounded-xl focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:outline-none"
             >
               <Avatar
                 name={currentUser.displayName}
@@ -1960,9 +2046,10 @@ export function ChatWorkspace({
               <button
                 type="button"
                 onClick={() => setProfileUserId(currentUser.id)}
-                className="block max-w-full truncate text-left text-sm font-semibold text-slate-900 hover:text-blue-600"
+                className="flex items-center gap-1 max-w-full text-left text-sm font-bold text-slate-900 hover:text-blue-600"
               >
-                {currentUser.displayName}
+                <span className="truncate">{currentUser.displayName}</span>
+                {isCurrentUserDev && <VerifiedBadge size="sm" />}
               </button>
               <button
                 type="button"
@@ -1985,7 +2072,7 @@ export function ChatWorkspace({
               onClick={() => setProfileUserId(currentUser.id)}
               aria-label="My Profile"
               title="My Profile"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
             >
               <Settings className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -1994,15 +2081,15 @@ export function ChatWorkspace({
               onClick={() => setShowLogoutConfirm(true)}
               aria-label="Sign out"
               title="Sign out"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>
-        <div className="px-4 py-1.5 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between text-[11px] text-slate-400">
+        <div className="px-3.5 py-1.5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between text-[11px] text-slate-400">
           <span>Developers:</span>
-          <span className="font-medium text-slate-600">Himanshu &amp; hmxerr</span>
+          <span className="font-semibold text-slate-600">Himanshu &amp; hmxerr</span>
         </div>
       </div>
     </div>
@@ -2020,8 +2107,8 @@ export function ChatWorkspace({
   const activeDmStreak = activeRoom ? (streakByRoomId[activeRoom.id] ?? 0) : 0;
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden bg-white text-slate-900">
-      <aside className="hidden w-[290px] shrink-0 lg:block">{sidebarContent}</aside>
+    <div className="flex h-dvh w-full overflow-hidden bg-[#f4f6f9] text-slate-900">
+      <aside className="hidden w-[320px] xl:w-[344px] shrink-0 lg:block">{sidebarContent}</aside>
 
       <AnimatePresence>
         {sidebarOpen && (
@@ -2031,7 +2118,7 @@ export function ChatWorkspace({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-[1px]"
+              className="fixed inset-0 bg-slate-950/45 backdrop-blur-xs"
               onClick={() => setSidebarOpen(false)}
               aria-hidden="true"
             />
@@ -2040,7 +2127,7 @@ export function ChatWorkspace({
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', stiffness: 360, damping: 34 }}
-              className="relative z-50 h-full w-[296px] max-w-[85vw] shadow-xl"
+              className="relative z-50 h-full w-[312px] max-w-[88vw] shadow-2xl"
             >
               {sidebarContent}
             </motion.aside>
@@ -2049,17 +2136,17 @@ export function ChatWorkspace({
       </AnimatePresence>
 
       <div className="flex min-w-0 flex-1 flex-col bg-white">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 sm:px-4 lg:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-3 sm:px-5 lg:px-6 z-20">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open friends, groups and stories"
-              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 lg:hidden"
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 lg:hidden"
             >
               <Menu className="h-4 w-4" aria-hidden="true" />
               {incomingRequests.length + totalUnreadOtherRooms > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 font-mono text-[10px] font-semibold text-white tabular-nums">
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 font-mono text-[10px] font-bold text-white tabular-nums">
                   {incomingRequests.length + totalUnreadOtherRooms}
                 </span>
               )}
@@ -2069,28 +2156,31 @@ export function ChatWorkspace({
               <button
                 type="button"
                 onClick={() => setProfileUserId(activeRoom.otherUser!.id)}
-                className="flex items-center gap-2.5 min-w-0 rounded-lg py-1 pr-2 text-left hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-2.5 min-w-0 rounded-xl py-1 pr-2 text-left hover:bg-slate-50 transition-colors"
                 title="View profile"
               >
                 <Avatar
                   name={activeRoom.name}
                   color={activeRoom.otherUser.avatarColor}
                   avatarUrl={activeRoom.otherUser.avatarUrl}
-                  size="sm"
+                  size="md"
                   showPresence
                   online={onlineUserIds.has(activeRoom.otherUser.id)}
                 />
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <h1 className="truncate font-display text-base font-semibold text-slate-900">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <h1 className="truncate font-display text-base font-bold text-slate-900">
                       {activeRoom.name}
                     </h1>
+                    {isDeveloperUser(activeRoom.otherUser.username) && (
+                      <VerifiedBadge size="sm" />
+                    )}
                     {activeDmStreak > 0 && (
                       <span
                         title={`${activeDmStreak}-day chat streak`}
-                        className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-amber-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-amber-700"
+                        className="ml-1 inline-flex shrink-0 items-center gap-0.5 font-mono text-xs font-bold text-orange-500 tabular-nums"
                       >
-                        <Flame className="h-3 w-3 text-amber-600" aria-hidden="true" />
+                        <Flame className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                         <span>{activeDmStreak}d</span>
                       </span>
                     )}
@@ -2110,12 +2200,12 @@ export function ChatWorkspace({
                   setEditingGroup(activeGroup);
                   setGroupModalOpen(true);
                 }}
-                className="flex items-center gap-2.5 min-w-0 rounded-lg py-1 pr-2 text-left hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-2.5 min-w-0 rounded-xl py-1 pr-2 text-left hover:bg-slate-50 transition-colors"
                 title="Group info & members"
               >
-                <Avatar name={activeGroup.name} color={activeGroup.avatarColor} size="sm" />
+                <Avatar name={activeGroup.name} color={activeGroup.avatarColor} size="md" />
                 <div className="min-w-0">
-                  <h1 className="truncate font-display text-base font-semibold text-slate-900">
+                  <h1 className="truncate font-display text-base font-bold text-slate-900">
                     {activeGroup.name}
                   </h1>
                   <p className="truncate text-xs text-slate-500">
@@ -2124,7 +2214,7 @@ export function ChatWorkspace({
                 </div>
               </button>
             ) : (
-              <h1 className="font-display text-base font-semibold text-slate-900">ForVasu</h1>
+              <h1 className="font-display text-base font-bold text-slate-900">ForVasu Studio</h1>
             )}
           </div>
 
@@ -2138,7 +2228,7 @@ export function ChatWorkspace({
                   onClick={() => handleStartCall('audio')}
                   aria-label="Start audio call"
                   title="Audio call"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-blue-600"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                 >
                   <Phone className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -2147,7 +2237,7 @@ export function ChatWorkspace({
                   onClick={() => handleStartCall('video')}
                   aria-label="Start video call"
                   title="Video call"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-blue-600"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                 >
                   <Video className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -2164,9 +2254,9 @@ export function ChatWorkspace({
                 }}
                 aria-label="Search messages in this chat"
                 title="Search chat"
-                className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${
+                className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
                   chatSearchOpen
-                    ? 'border-blue-300 bg-blue-50 text-blue-600'
+                    ? 'border-slate-900 bg-slate-900 text-[#FFEC1F]'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
@@ -2480,26 +2570,27 @@ export function ChatWorkspace({
             </button>
           </div>
         ) : !hasActiveConversation ? (
-          <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-blue-600">
-              <UserPlus className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <h2 className="mt-4 text-lg font-semibold text-slate-900">
-              Search a user ID to start chatting
-            </h2>
-            <p className="mt-1.5 max-w-sm text-sm text-slate-500">
-              Send an add request using a friend&apos;s username or user ID. Once they accept, your
-              direct chat opens automatically.
-            </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setAddFriendOpen(true)}
-                className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                <Search className="h-4 w-4" aria-hidden="true" />
-                <span>Find User by ID</span>
-              </button>
+          <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center bg-[#f7f8fa] chat-canvas-dots">
+            <div className="w-full max-w-md rounded-3xl border border-slate-200/90 bg-white p-8 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-[#FFEC1F] shadow-sm">
+                <MessageSquare className="h-7 w-7" aria-hidden="true" />
+              </div>
+              <h2 className="mt-5 font-display text-xl font-bold text-slate-900">
+                Start a conversation
+              </h2>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                Search someone by username or share your handle to start sending snaps, 24h stories,
+                and encrypted calls.
+              </p>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAddFriendOpen(true)}
+                  className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
+                >
+                  <Search className="h-4 w-4 text-[#FFEC1F]" aria-hidden="true" />
+                  <span>Find User by ID</span>
+                </button>
               <button
                 type="button"
                 onClick={() => void handleCopyUsername()}
@@ -2517,18 +2608,19 @@ export function ChatWorkspace({
                   </>
                 )}
               </button>
+              </div>
             </div>
 
             {incomingRequests.length > 0 && (
-              <div className="mt-8 w-full max-w-sm rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left">
-                <h3 className="text-xs font-semibold text-slate-600">
+              <div className="mt-6 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Pending Add Requests ({incomingRequests.length})
                 </h3>
                 <ul className="mt-3 space-y-2">
                   {incomingRequests.map((req) => (
                     <li
                       key={req.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2.5"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-2.5"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Avatar
@@ -2538,7 +2630,7 @@ export function ChatWorkspace({
                           size="sm"
                         />
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-slate-900">
+                          <p className="truncate text-sm font-semibold text-slate-900">
                             {req.user.displayName}
                           </p>
                           <p className="truncate font-mono text-xs text-slate-500">
@@ -2551,7 +2643,7 @@ export function ChatWorkspace({
                           type="button"
                           disabled={busyRequestId === req.id}
                           onClick={() => void handleAcceptRequest(req.id)}
-                          className="min-h-[34px] rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
+                          className="min-h-[34px] rounded-xl bg-slate-900 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-800"
                         >
                           Accept
                         </button>
@@ -2560,7 +2652,7 @@ export function ChatWorkspace({
                           disabled={busyRequestId === req.id}
                           onClick={() => void handleDeclineOrCancelRequest(req.id)}
                           aria-label="Ignore request"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
                         >
                           <X className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
@@ -2778,19 +2870,24 @@ export function ChatWorkspace({
                             )}
 
                             <div
-                              className={`relative rounded-2xl px-4 py-2.5 max-w-[82%] sm:max-w-md shadow-sm ${
+                              className={`relative rounded-[20px] px-4 py-2.5 max-w-[82%] sm:max-w-md ${
                                 isOwn
-                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-xs'
+                                  ? 'bg-blue-600 text-white rounded-br-[6px] shadow-[0_2px_10px_rgba(37,99,235,0.22)]'
                                   : activeTheme.isDark
-                                    ? 'bg-slate-800 text-slate-100 rounded-tl-xs border border-slate-700'
-                                    : 'bg-slate-100 text-slate-900 rounded-tl-xs border border-slate-200/60'
+                                    ? 'bg-slate-800 text-slate-100 rounded-bl-[6px] border border-slate-700'
+                                    : 'bg-white text-slate-900 rounded-bl-[6px] border border-slate-200/90 shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
                               }`}
                             >
                               {!isGrouped && !isOwn && (
-                                <div className="mb-1 flex flex-wrap items-baseline gap-2">
-                                  <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                                  <span
+                                    className={`text-xs font-bold ${
+                                      activeTheme.isDark ? 'text-blue-400' : 'text-blue-700'
+                                    }`}
+                                  >
                                     {msg.senderDisplayName}
                                   </span>
+                                  {isDeveloperUser(msg.senderName) && <VerifiedBadge size="sm" />}
                                   <span className={`font-mono text-[11px] ${activeTheme.mutedClass}`}>
                                     @{msg.senderName}
                                   </span>
@@ -2799,9 +2896,9 @@ export function ChatWorkspace({
 
                               {msg.replyTo && (
                                 <div
-                                  className={`mb-1.5 rounded-lg border-l-2 px-2.5 py-1 text-xs ${
+                                  className={`mb-1.5 rounded-xl px-2.5 py-1.5 text-xs ${
                                     isOwn
-                                      ? 'border-white/80 bg-white/10 text-white/90'
+                                      ? 'bg-white/15 text-white/95'
                                       : activeTheme.replyClass
                                   }`}
                                 >
@@ -2822,13 +2919,13 @@ export function ChatWorkspace({
                               {msg.viewOnce ? (
                                 <div className="my-1">
                                   {msg.viewOnceConsumed ? (
-                                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200/40 bg-black/10 px-3 py-1.5 text-xs font-medium opacity-80">
+                                    <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/30 bg-black/10 px-3 py-1.5 text-xs font-medium opacity-80">
                                       <Flame className="h-3.5 w-3.5" aria-hidden="true" />
                                       <span>Opened snap</span>
                                     </span>
                                   ) : isOwn ? (
-                                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-medium text-white">
-                                      <Flame className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+                                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-1.5 text-xs font-semibold text-white">
+                                      <Flame className="h-3.5 w-3.5 text-[#FFEC1F]" aria-hidden="true" />
                                       <span>View-once snap sent</span>
                                     </span>
                                   ) : (
@@ -2836,11 +2933,11 @@ export function ChatWorkspace({
                                       type="button"
                                       disabled={openingSnapId === msg.id}
                                       onClick={() => void handleOpenViewOnceSnap(msg)}
-                                      className="inline-flex min-h-[36px] items-center gap-2 rounded-lg bg-amber-500 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-60 transition-colors shadow-sm"
+                                      className="inline-flex min-h-[38px] items-center gap-2 rounded-xl bg-[#FFEC1F] px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-300 disabled:opacity-60 transition-colors shadow-xs"
                                     >
-                                      <Flame className="h-4 w-4" aria-hidden="true" />
+                                      <Flame className="h-4 w-4 text-orange-600" aria-hidden="true" />
                                       <span>
-                                        {openingSnapId === msg.id ? 'Opening...' : 'Tap to view once'}
+                                        {openingSnapId === msg.id ? 'Opening...' : 'Tap to View Snap'}
                                       </span>
                                     </button>
                                   )}
@@ -2848,7 +2945,7 @@ export function ChatWorkspace({
                               ) : (
                                 <>
                                   {msg.content && (
-                                    <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">
+                                    <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed select-text">
                                       {msg.content}
                                     </p>
                                   )}
@@ -3062,12 +3159,12 @@ export function ChatWorkspace({
               </AnimatePresence>
             </div>
 
-            <div className="shrink-0 border-t border-slate-200 bg-white px-4 pt-2 pb-4 lg:px-6">
-              <div className="mb-1.5 flex items-center justify-between gap-2 min-h-[20px]">
+            <div className="shrink-0 border-t border-slate-200/80 bg-white/95 backdrop-blur-md px-3.5 pt-2.5 pb-3.5 sm:px-5 lg:px-6">
+              <div className="mb-2 flex items-center justify-between gap-2 min-h-[22px]">
                 <div className="text-xs text-slate-500 flex items-center gap-2">
                   {activeTypers.length > 0 && (
                     <>
-                      <span className="font-medium text-blue-600">{activeTypers[0]} is typing</span>
+                      <span className="font-semibold text-blue-600">{activeTypers[0]} is typing</span>
                       <div className="flex items-center gap-0.5">
                         <motion.span animate={{ scaleY: [1, 2.2, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="h-2.5 w-1 rounded-full bg-blue-600 inline-block" />
                         <motion.span animate={{ scaleY: [1, 2.2, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.15 }} className="h-2.5 w-1 rounded-full bg-blue-600 inline-block" />
@@ -3084,13 +3181,16 @@ export function ChatWorkspace({
                       disabled={isRecording}
                       onClick={() => setViewOnceMode((prev) => !prev)}
                       title="Send as view-once snap"
-                      className={`inline-flex min-h-[28px] items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors whitespace-nowrap ${
+                      className={`inline-flex min-h-[30px] items-center gap-1.5 rounded-xl border px-2.5 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap ${
                         viewOnceMode
-                          ? 'border-amber-300 bg-amber-50 text-amber-800'
+                          ? 'border-amber-300 bg-[#FFEC1F] text-slate-950 shadow-2xs'
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                       }`}
                     >
-                      <Flame className="h-3 w-3" aria-hidden="true" />
+                      <Flame
+                        className={`h-3.5 w-3.5 ${viewOnceMode ? 'text-orange-600' : ''}`}
+                        aria-hidden="true"
+                      />
                       <span>View once</span>
                     </button>
                   )}
@@ -3098,13 +3198,13 @@ export function ChatWorkspace({
                     type="button"
                     onClick={() => setDisappear24hMode((prev) => !prev)}
                     title="Auto-delete after 24 hours"
-                    className={`inline-flex min-h-[28px] items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors whitespace-nowrap ${
+                    className={`inline-flex min-h-[30px] items-center gap-1.5 rounded-xl border px-2.5 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap ${
                       disappear24hMode
                         ? 'border-blue-300 bg-blue-50 text-blue-700'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <Timer className="h-3 w-3" aria-hidden="true" />
+                    <Timer className="h-3.5 w-3.5" aria-hidden="true" />
                     <span>24h timer</span>
                   </button>
                 </div>
@@ -3117,13 +3217,13 @@ export function ChatWorkspace({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 4 }}
                     transition={{ duration: 0.15 }}
-                    className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2"
+                    className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-blue-900">
+                      <p className="text-xs font-bold text-slate-900">
                         Replying to {replyingTo.senderDisplayName}
                       </p>
-                      <p className="truncate text-xs text-blue-700">
+                      <p className="truncate text-xs text-slate-600">
                         {replyingTo.viewOnce
                           ? 'View-once snap'
                           : replyingTo.content ||
@@ -3138,7 +3238,7 @@ export function ChatWorkspace({
                       type="button"
                       onClick={() => setReplyingTo(null)}
                       aria-label="Cancel reply"
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-blue-700 hover:bg-blue-100"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-200"
                     >
                       <X className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
@@ -3153,15 +3253,15 @@ export function ChatWorkspace({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 4 }}
                     transition={{ duration: 0.15 }}
-                    className="mb-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2"
+                    className="mb-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-2.5"
                   >
                     <img
                       src={selectedImageDataUrl}
                       alt={selectedImageName || 'Selected image preview'}
-                      className="h-14 w-14 rounded-lg border border-slate-200 object-cover shrink-0"
+                      className="h-14 w-14 rounded-xl border border-slate-200 object-cover shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-slate-800">
+                      <p className="truncate text-xs font-semibold text-slate-800">
                         {selectedImageName || 'Image ready to send'}
                       </p>
                       <p className="text-xs text-slate-500">
@@ -3174,7 +3274,7 @@ export function ChatWorkspace({
                       type="button"
                       onClick={clearSelectedImage}
                       aria-label="Remove image"
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-900"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-200 hover:text-slate-900"
                     >
                       <X className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -3183,11 +3283,11 @@ export function ChatWorkspace({
               </AnimatePresence>
 
               {isRecording ? (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5">
                   <div className="flex items-center gap-2.5">
                     <span className="h-2.5 w-2.5 rounded-full bg-red-600" aria-hidden="true" />
                     <span className="text-xs font-semibold text-red-900">Recording voice note</span>
-                    <span className="font-mono text-xs font-medium text-red-700 tabular-nums">
+                    <span className="font-mono text-xs font-semibold text-red-700 tabular-nums">
                       {formatDuration(recordingMs)}
                     </span>
                   </div>
@@ -3195,7 +3295,7 @@ export function ChatWorkspace({
                     <button
                       type="button"
                       onClick={() => stopRecordingCleanup(true)}
-                      className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      className="inline-flex min-h-[36px] items-center gap-1 rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                     >
                       <X className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>Cancel</span>
@@ -3203,9 +3303,9 @@ export function ChatWorkspace({
                     <button
                       type="button"
                       onClick={() => stopRecordingCleanup(false)}
-                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
                     >
-                      <Square className="h-3 w-3 fill-current" aria-hidden="true" />
+                      <Square className="h-3 w-3 fill-current text-[#FFEC1F]" aria-hidden="true" />
                       <span>Send Note</span>
                     </button>
                   </div>
@@ -3213,7 +3313,7 @@ export function ChatWorkspace({
               ) : (
                 <form
                   onSubmit={handleComposerSubmit}
-                  className="flex items-end gap-2 rounded-xl border border-slate-300 bg-white p-2 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/15"
+                  className="flex items-end gap-1.5 rounded-2xl border border-slate-200 bg-slate-50/60 p-1.5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] transition-all focus-within:border-slate-900 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-900/10"
                 >
                   <input
                     ref={fileInputRef}
@@ -3228,7 +3328,7 @@ export function ChatWorkspace({
                     onClick={() => fileInputRef.current?.click()}
                     aria-label="Attach image"
                     title="Send image"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45 transition-colors"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45 transition-colors"
                   >
                     <ImagePlus className="h-5 w-5" aria-hidden="true" />
                   </button>
@@ -3238,7 +3338,7 @@ export function ChatWorkspace({
                     onClick={() => void startVoiceRecording()}
                     aria-label="Record voice note"
                     title="Record voice note"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45 transition-colors"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45 transition-colors"
                   >
                     <Mic className="h-5 w-5" aria-hidden="true" />
                   </button>
@@ -3253,7 +3353,7 @@ export function ChatWorkspace({
                     placeholder={
                       viewOnceMode && activeRoom
                         ? `Send a view-once snap to ${activeConversationName}`
-                        : `Message ${activeConversationName}`
+                        : `Chat with ${activeConversationName}`
                     }
                     aria-label="Message input"
                     className="max-h-36 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
@@ -3272,9 +3372,9 @@ export function ChatWorkspace({
                         (!draft.trim() && !selectedImageDataUrl)
                       }
                       aria-label="Send message"
-                      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-45 transition-colors whitespace-nowrap"
+                      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 transition-colors whitespace-nowrap"
                     >
-                      <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                      <Send className="h-3.5 w-3.5 text-[#FFEC1F]" aria-hidden="true" />
                       <span>{uploadingMedia ? 'Sending...' : 'Send'}</span>
                     </button>
                   </div>
@@ -3374,6 +3474,19 @@ export function ChatWorkspace({
         }}
       />
 
+      {isCurrentUserDev && (
+        <AdminModal
+          open={adminModalOpen}
+          currentUser={currentUser}
+          onClose={() => setAdminModalOpen(false)}
+          onOpenChat={(roomId) => {
+            setActiveRoomId(roomId);
+            setSidebarOpen(false);
+          }}
+          onSelectProfile={(userId) => setProfileUserId(userId)}
+        />
+      )}
+
       <AnimatePresence>
         {showLogoutConfirm && (
           <motion.div
@@ -3381,7 +3494,7 @@ export function ChatWorkspace({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-[2px] px-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 backdrop-blur-xs px-4"
             onClick={() => setShowLogoutConfirm(false)}
             role="dialog"
             aria-modal="true"
@@ -3392,7 +3505,7 @@ export function ChatWorkspace({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ type: 'spring', stiffness: 360, damping: 30 }}
-              className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+              className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-3.5">
@@ -3410,7 +3523,7 @@ export function ChatWorkspace({
               </div>
 
               <p className="mt-3.5 text-sm text-slate-600 leading-relaxed">
-                Aapka active session logout ho jayega. Dobara baat karne ke liye aapko sign in karna hoga.
+                Your active session will be signed out. You will need to sign in again to continue chatting.
               </p>
 
               <div className="mt-6 flex items-center justify-end gap-2.5">
@@ -3444,7 +3557,7 @@ export function ChatWorkspace({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-[2px] px-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 backdrop-blur-xs px-4"
             onClick={() => setConfirmAction(null)}
             role="dialog"
             aria-modal="true"
@@ -3455,7 +3568,7 @@ export function ChatWorkspace({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ type: 'spring', stiffness: 360, damping: 30 }}
-              className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+              className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <h2 id="confirm-friend-action-title" className="text-base font-semibold text-slate-900">

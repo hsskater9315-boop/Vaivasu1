@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, ShieldCheck } from 'lucide-react';
 
 interface AvatarProps {
   name: string;
   color: string;
   avatarUrl?: string | null;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   online?: boolean;
   showPresence?: boolean;
 }
@@ -42,9 +42,10 @@ export function VerifiedBadge({
 export function DeveloperTag({ className = '' }: { className?: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200 ${className}`}
+      className={`inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 ${className}`}
     >
-      <span>🛡️ Dev &amp; Admin</span>
+      <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>Official Creator &amp; Admin</span>
     </span>
   );
 }
@@ -65,10 +66,19 @@ export function Avatar({
 
   const sizeClasses =
     size === 'sm'
-      ? 'h-8 w-8 text-xs'
+      ? 'h-9 w-9 text-xs rounded-xl'
+      : size === 'xl'
+        ? 'h-16 w-16 text-lg rounded-2xl'
+        : size === 'lg'
+          ? 'h-12 w-12 text-sm rounded-2xl'
+          : 'h-10 w-10 text-xs rounded-xl';
+
+  const presenceDotClass =
+    size === 'xl'
+      ? 'h-3.5 w-3.5 right-0 bottom-0'
       : size === 'lg'
-        ? 'h-11 w-11 text-sm'
-        : 'h-9 w-9 text-xs';
+        ? 'h-3 w-3 -right-0.5 -bottom-0.5'
+        : 'h-2.5 w-2.5 -right-0.5 -bottom-0.5';
 
   const safeUrl =
     avatarUrl && (avatarUrl.startsWith('/api/uploads/') || avatarUrl.startsWith('data:image/'))
@@ -83,11 +93,11 @@ export function Avatar({
           alt={name}
           referrerPolicy="no-referrer"
           onError={() => setImgFailed(true)}
-          className={`${sizeClasses} rounded-lg object-cover border border-slate-200 select-none`}
+          className={`${sizeClasses} object-cover ring-1 ring-slate-900/10 select-none bg-slate-100`}
         />
       ) : (
         <div
-          className={`${sizeClasses} flex items-center justify-center rounded-lg font-semibold tracking-tight text-white select-none`}
+          className={`${sizeClasses} flex items-center justify-center font-display font-bold tracking-tight text-white select-none ring-1 ring-black/5`}
           style={{ backgroundColor: color }}
           aria-hidden="true"
         >
@@ -96,8 +106,8 @@ export function Avatar({
       )}
       {showPresence && (
         <span
-          className={`absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
-            online ? 'bg-emerald-600' : 'bg-slate-300'
+          className={`absolute ${presenceDotClass} rounded-full ring-2 ring-white ${
+            online ? 'bg-emerald-500' : 'bg-slate-300'
           }`}
           title={online ? 'Online' : 'Offline'}
         />

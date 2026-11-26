@@ -17,7 +17,7 @@ import {
 import { supabase } from '../supabase';
 import type { PublicUser, Room } from '../types/chat';
 import { Avatar, VerifiedBadge } from './Avatar';
-import { getPairInfo } from '../services/firestoreChat';
+import { getPairInfo, isDeveloperUser } from '../services/firestoreChat';
 
 interface AdminModalProps {
   open: boolean;
@@ -256,7 +256,7 @@ export function AdminModal({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.16 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 backdrop-blur-xs p-4"
         onClick={onClose}
         role="dialog"
         aria-modal="true"
@@ -267,7 +267,7 @@ export function AdminModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 8 }}
           transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-          className="flex h-[88vh] max-h-[720px] w-full max-w-2xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
+          className="flex h-[88vh] max-h-[720px] w-full max-w-2xl flex-col rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -361,8 +361,9 @@ export function AdminModal({
                         </p>
                       </div>
                     </div>
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                      System Operational
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                      <span>Operational</span>
                     </span>
                   </div>
                 </div>
@@ -421,7 +422,7 @@ export function AdminModal({
                         <span>Feed Injection Sync</span>
                       </h4>
                       <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                        Ye button dabane se aapka account (@{currentUser.username}) sabhi registered users ki chat feed me automatically link ho jayega taaki koi bhi user aapse direct baat kar sake.
+                        Clicking this links your account (@{currentUser.username}) to all registered users&apos; chat feeds so anyone can message you directly.
                       </p>
                       {syncFeedMessage && (
                         <p className="mt-2 text-xs font-medium text-emerald-700">
@@ -449,7 +450,7 @@ export function AdminModal({
                     Official Admin Announcement Message
                   </label>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Ye message sabhi registered users ke inbox me aapke verified account se broadcast hoga.
+                    This message will be broadcast to every registered user&apos;s inbox from your verified account.
                   </p>
                   <textarea
                     id="broadcast-message"
@@ -510,7 +511,7 @@ export function AdminModal({
                       <p className="p-4 text-center text-xs text-slate-500">No users found.</p>
                     ) : (
                       filteredUsers.map((u) => {
-                        const isThisDev = u.username.toLowerCase() === 'hmxerr';
+                        const isThisDev = isDeveloperUser(u.username);
                         return (
                           <div
                             key={u.id}

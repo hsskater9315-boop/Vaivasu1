@@ -26,9 +26,9 @@ export function PWAInstallButton() {
         type="button"
         whileTap={{ scale: 0.96 }}
         onClick={() => void install()}
-        className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0"
+        className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
       >
-        <Download className="h-3.5 w-3.5" aria-hidden="true" />
+        <Download className="h-3.5 w-3.5 text-[#FFEC1F]" aria-hidden="true" />
         <span>Install App</span>
       </motion.button>
     );

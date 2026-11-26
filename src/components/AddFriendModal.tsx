@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Copy, Search, UserCheck, UserPlus, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
+  isDeveloperUser,
   searchUsersByHandle,
   sendOrAutoAcceptFriendRequest,
 } from '../services/firestoreChat';
@@ -11,7 +12,7 @@ import type {
   Room,
   UserSearchResult,
 } from '../types/chat';
-import { Avatar } from './Avatar';
+import { Avatar, VerifiedBadge } from './Avatar';
 
 interface AddFriendModalProps {
   open: boolean;
@@ -194,7 +195,7 @@ export function AddFriendModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 backdrop-blur-xs px-4"
           onClick={onClose}
           role="dialog"
           aria-modal="true"
@@ -205,11 +206,11 @@ export function AddFriendModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6"
+            className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-4">
-              <h2 id="add-friend-title" className="text-lg font-semibold text-slate-900">
+              <h2 id="add-friend-title" className="font-display text-lg font-bold text-slate-900">
                 Add Friend
               </h2>
               <button
@@ -316,9 +317,12 @@ export function AddFriendModal({
                             size="md"
                           />
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                              {item.user.displayName}
-                            </p>
+                            <div className="flex items-center gap-1">
+                              <p className="truncate text-sm font-semibold text-slate-900">
+                                {item.user.displayName}
+                              </p>
+                              {isDeveloperUser(item.user.username) && <VerifiedBadge size="sm" />}
+                            </div>
                             <p className="truncate font-mono text-xs text-slate-500">
                               @{item.user.username}
                             </p>
@@ -333,7 +337,7 @@ export function AddFriendModal({
                                 onOpenChat(item.roomId!);
                                 onClose();
                               }}
-                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                             >
                               <UserCheck className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
                               <span>Chat</span>
@@ -347,9 +351,9 @@ export function AddFriendModal({
                               type="button"
                               disabled={isBusy}
                               onClick={() => void handleAccept(item)}
-                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                             >
-                              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                              <Check className="h-3.5 w-3.5 text-[#FFEC1F]" aria-hidden="true" />
                               <span>Accept</span>
                             </button>
                           ) : (
@@ -357,9 +361,9 @@ export function AddFriendModal({
                               type="button"
                               disabled={isBusy}
                               onClick={() => void handleSendRequest(item)}
-                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                             >
-                              <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                              <UserPlus className="h-3.5 w-3.5 text-[#FFEC1F]" aria-hidden="true" />
                               <span>{isBusy ? 'Adding...' : 'Add'}</span>
                             </button>
                           )}
